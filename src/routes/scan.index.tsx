@@ -5,7 +5,7 @@ import { useApp } from "../store/app";
 import { analyzeBarcodeProduct, analyzePhoto } from "../lib/scan.functions";
 import { useServerFn } from "@tanstack/react-start";
 
-export const Route = createFileRoute("/scan")({
+export const Route = createFileRoute("/scan/")({
   component: ScanPage,
 });
 

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ScanRouteImport } from './routes/scan'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as HistoryRouteImport } from './routes/history'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ScanIndexRouteImport } from './routes/scan.index'
 import { Route as ScanResultRouteImport } from './routes/scan.result'
 
+const ScanRoute = ScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -43,9 +49,9 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ScanIndexRoute = ScanIndexRouteImport.update({
-  id: '/scan/',
-  path: '/scan/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => ScanRoute,
 } as any)
 const ScanResultRoute = ScanResultRouteImport.update({
   id: '/result',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
+  '/scan': typeof ScanRouteWithChildren
   '/scan/result': typeof ScanResultRoute
   '/scan/': typeof ScanIndexRoute
 }
@@ -78,6 +85,7 @@ export interface FileRoutesById {
   '/history': typeof HistoryRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
+  '/scan': typeof ScanRouteWithChildren
   '/scan/result': typeof ScanResultRoute
   '/scan/': typeof ScanIndexRoute
 }
@@ -89,6 +97,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/onboarding'
     | '/profile'
+    | '/scan'
     | '/scan/result'
     | '/scan/'
   fileRoutesByTo: FileRoutesByTo
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/onboarding'
     | '/profile'
+    | '/scan'
     | '/scan/result'
     | '/scan/'
   fileRoutesById: FileRoutesById
@@ -117,11 +127,18 @@ export interface RootRouteChildren {
   HistoryRoute: typeof HistoryRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
-  ScanIndexRoute: typeof ScanIndexRoute
+  ScanRoute: typeof ScanRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/scan': {
+      id: '/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof ScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -159,10 +176,10 @@ declare module '@tanstack/react-router' {
     }
     '/scan/': {
       id: '/scan/'
-      path: '/scan'
+      path: '/'
       fullPath: '/scan/'
       preLoaderRoute: typeof ScanIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ScanRoute
     }
     '/scan/result': {
       id: '/scan/result'
@@ -174,13 +191,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ScanRouteChildren {
+  ScanResultRoute: typeof ScanResultRoute
+  ScanIndexRoute: typeof ScanIndexRoute
+}
+
+const ScanRouteChildren: ScanRouteChildren = {
+  ScanResultRoute: ScanResultRoute,
+  ScanIndexRoute: ScanIndexRoute,
+}
+
+const ScanRouteWithChildren = ScanRoute._addFileChildren(ScanRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CoachRoute: CoachRoute,
   HistoryRoute: HistoryRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
-  ScanIndexRoute: ScanIndexRoute,
+  ScanRoute: ScanRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

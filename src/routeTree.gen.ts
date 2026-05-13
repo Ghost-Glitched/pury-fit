@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScanRouteImport } from './routes/scan'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as CoachRouteImport } from './routes/coach'
@@ -19,6 +20,11 @@ import { Route as ScanResultRouteImport } from './routes/scan.result'
 const ScanRoute = ScanRouteImport.update({
   id: '/scan',
   path: '/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/coach': typeof CoachRoute
   '/history': typeof HistoryRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
   '/scan': typeof ScanRouteWithChildren
   '/scan/result': typeof ScanResultRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/coach': typeof CoachRoute
   '/history': typeof HistoryRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
   '/scan': typeof ScanRouteWithChildren
   '/scan/result': typeof ScanResultRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/coach': typeof CoachRoute
   '/history': typeof HistoryRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
   '/scan': typeof ScanRouteWithChildren
   '/scan/result': typeof ScanResultRoute
 }
@@ -79,16 +88,25 @@ export interface FileRouteTypes {
     | '/coach'
     | '/history'
     | '/onboarding'
+    | '/profile'
     | '/scan'
     | '/scan/result'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/coach' | '/history' | '/onboarding' | '/scan' | '/scan/result'
+  to:
+    | '/'
+    | '/coach'
+    | '/history'
+    | '/onboarding'
+    | '/profile'
+    | '/scan'
+    | '/scan/result'
   id:
     | '__root__'
     | '/'
     | '/coach'
     | '/history'
     | '/onboarding'
+    | '/profile'
     | '/scan'
     | '/scan/result'
   fileRoutesById: FileRoutesById
@@ -98,6 +116,7 @@ export interface RootRouteChildren {
   CoachRoute: typeof CoachRoute
   HistoryRoute: typeof HistoryRoute
   OnboardingRoute: typeof OnboardingRoute
+  ProfileRoute: typeof ProfileRoute
   ScanRoute: typeof ScanRouteWithChildren
 }
 
@@ -108,6 +127,13 @@ declare module '@tanstack/react-router' {
       path: '/scan'
       fullPath: '/scan'
       preLoaderRoute: typeof ScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -163,6 +189,7 @@ const rootRouteChildren: RootRouteChildren = {
   CoachRoute: CoachRoute,
   HistoryRoute: HistoryRoute,
   OnboardingRoute: OnboardingRoute,
+  ProfileRoute: ProfileRoute,
   ScanRoute: ScanRouteWithChildren,
 }
 export const routeTree = rootRouteImport

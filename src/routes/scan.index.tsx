@@ -119,16 +119,12 @@ function ScanPage() {
           productName: p.product_name || "Unknown product",
           brand: p.brands,
           nutriments,
+          servingSize: p.serving_size,
           ingredients: p.ingredients_text,
         },
       });
-      const meal = {
-        ...analysis,
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        source: "barcode" as const,
-      };
-      sessionStorage.setItem("fuelscan-pending", JSON.stringify(meal));
+      const pending = { analysis, source: "barcode" as const };
+      sessionStorage.setItem("fuelscan-pending", JSON.stringify(pending));
       navigate({ to: "/scan/result" });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

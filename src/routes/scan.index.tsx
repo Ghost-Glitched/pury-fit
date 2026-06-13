@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { useApp } from "../store/app";
 import { analyzeBarcodeProduct, analyzePhoto } from "../lib/scan.functions";
+import { downscaleDataUrl, videoFrameToDataUrl } from "../lib/image";
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/scan/")({

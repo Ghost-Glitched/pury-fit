@@ -167,14 +167,8 @@ function ScanPage() {
       const analysis = await analyzePhotoFn({
         data: { imageDataUrl: dataUrl, goal: profile.goal },
       });
-      const meal = {
-        ...analysis,
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        source: "photo" as const,
-        imageDataUrl: dataUrl,
-      };
-      sessionStorage.setItem("fuelscan-pending", JSON.stringify(meal));
+      const pending = { analysis, source: "photo" as const, imageDataUrl: dataUrl };
+      sessionStorage.setItem("fuelscan-pending", JSON.stringify(pending));
       navigate({ to: "/scan/result" });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

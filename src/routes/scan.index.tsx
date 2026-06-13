@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { useApp } from "../store/app";
 import { analyzeBarcodeProduct, analyzePhoto } from "../lib/scan.functions";
+import { downscaleDataUrl, videoFrameToDataUrl } from "../lib/image";
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/scan/")({
@@ -135,16 +136,7 @@ function ScanPage() {
 
   async function capturePhoto() {
     if (!profile || !videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    const w = video.videoWidth || 720;
-    const h = video.videoHeight || 1280;
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, w, h);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+    const dataUrl = videoFrameToDataUrl(videoRef.current, 1280, 0.82);
     await analyzeFromDataUrl(dataUrl);
   }
 
@@ -152,8 +144,11 @@ function ScanPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") analyzeFromDataUrl(reader.result);
+    reader.onload = async () => {
+      if (typeof reader.result === "string") {
+        const shrunk = await downscaleDataUrl(reader.result, 1280, 0.82);
+        analyzeFromDataUrl(shrunk);
+      }
     };
     reader.readAsDataURL(file);
   }

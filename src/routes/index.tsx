@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dailyTotals, GOAL_LABEL, todaysMeals, useApp } from "../store/app";
 import { getSuggestions, type Suggestions } from "../lib/scan.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -17,10 +17,11 @@ function Dashboard() {
     if (!profile) navigate({ to: "/onboarding" });
   }, [profile, navigate]);
 
+  const totals = useMemo(() => dailyTotals(meals), [meals]);
+  const today = useMemo(() => todaysMeals(meals), [meals]);
+
   if (!profile) return null;
 
-  const totals = dailyTotals(meals);
-  const today = todaysMeals(meals);
   const kcalPct = Math.min(100, (totals.kcal / profile.kcalTarget) * 100);
 
   return (

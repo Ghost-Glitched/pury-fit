@@ -197,7 +197,7 @@ export const analyzeBarcodeProduct = createServerFn({ method: "POST" })
       2,
     );
     return callGateway({
-      model: "google/gemini-2.5-pro",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: buildSystem(data.goal) },
         {

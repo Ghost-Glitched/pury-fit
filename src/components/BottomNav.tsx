@@ -41,6 +41,7 @@ function NavBtn({ to, label, active }: { to: string; label: string; active: bool
   return (
     <Link
       to={to}
+      preload="intent"
       className={`font-mono text-[10px] uppercase font-bold px-3 py-2 ${
         active ? "text-primary" : "text-muted-foreground"
       }`}

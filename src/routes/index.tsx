@@ -17,10 +17,11 @@ function Dashboard() {
     if (!profile) navigate({ to: "/onboarding" });
   }, [profile, navigate]);
 
+  const totals = useMemo(() => dailyTotals(meals), [meals]);
+  const today = useMemo(() => todaysMeals(meals), [meals]);
+
   if (!profile) return null;
 
-  const totals = dailyTotals(meals);
-  const today = todaysMeals(meals);
   const kcalPct = Math.min(100, (totals.kcal / profile.kcalTarget) * 100);
 
   return (

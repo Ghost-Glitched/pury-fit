@@ -24,12 +24,17 @@ export interface Meal {
   id: string;
   timestamp: number;
   name: string;
+  // FINAL logged values (already multiplied by servings)
   kcal: number;
   protein: number;
   carbs: number;
   fat: number;
+  // portion info
+  servings: number;
+  servingDescription?: string;
   verdict: Verdict;
   reasoning: string;
+  confidence?: "low" | "medium" | "high";
   imageDataUrl?: string;
   source: "photo" | "barcode";
 }

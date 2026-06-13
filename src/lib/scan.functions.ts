@@ -3,53 +3,128 @@ import { createServerFn } from "@tanstack/react-start";
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 export type Verdict = "great" | "ok" | "avoid";
+export type Confidence = "low" | "medium" | "high";
+
+export interface Alternative {
+  name: string;
+  servingDescription: string;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
 
 export interface FoodAnalysis {
   name: string;
-  kcal: number;
+  servingDescription: string; // e.g. "1 medium bowl, ~250g"
+  servingGrams: number; // best estimate of grams in ONE serving
+  kcal: number; // per ONE serving
   protein: number;
   carbs: number;
   fat: number;
   verdict: Verdict;
   reasoning: string;
+  confidence: Confidence;
+  assumptions: string; // what the AI assumed (cooking method, oil, sugar, portion cues)
+  components: string[]; // visible items the AI detected on the plate
+  alternatives: Alternative[]; // 2-3 likely alternative IDs the user can pick
 }
+
+const ALT_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    servingDescription: { type: "string" },
+    kcal: { type: "number" },
+    protein: { type: "number" },
+    carbs: { type: "number" },
+    fat: { type: "number" },
+  },
+  required: ["name", "servingDescription", "kcal", "protein", "carbs", "fat"],
+  additionalProperties: false,
+} as const;
 
 const ANALYSIS_TOOL = {
   type: "function",
   function: {
     name: "submit_food_analysis",
-    description: "Submit nutritional analysis and verdict for the food.",
+    description: "Submit nutrition analysis for ONE serving plus alternatives.",
     parameters: {
       type: "object",
       properties: {
-        name: { type: "string", description: "Concise dish/food name" },
-        kcal: { type: "number", description: "Estimated total calories" },
-        protein: { type: "number", description: "Grams of protein" },
-        carbs: { type: "number", description: "Grams of carbohydrates" },
-        fat: { type: "number", description: "Grams of fat" },
-        verdict: {
+        name: { type: "string", description: "Concise dish name" },
+        servingDescription: {
           type: "string",
-          enum: ["great", "ok", "avoid"],
-          description: "great=eat freely, ok=fine in moderation, avoid=skip for goal",
+          description:
+            "Human description of ONE serving with size cues, e.g. '1 medium bowl, ~250g' or '2 slices, ~120g'.",
         },
-        reasoning: {
+        servingGrams: {
+          type: "number",
+          description: "Best-estimate grams in ONE serving you analyzed.",
+        },
+        kcal: { type: "number", description: "Calories per ONE serving (not per 100g)" },
+        protein: { type: "number" },
+        carbs: { type: "number" },
+        fat: { type: "number" },
+        verdict: { type: "string", enum: ["great", "ok", "avoid"] },
+        reasoning: { type: "string", description: "1-2 sentences tied to user's goal." },
+        confidence: {
           type: "string",
-          description: "1-2 sentence explanation tied to user's goal.",
+          enum: ["low", "medium", "high"],
+          description: "How sure you are about the identification AND the portion.",
+        },
+        assumptions: {
+          type: "string",
+          description:
+            "Key assumptions: cooking method, added oil/sugar/sauce, plate size, density. Keep <30 words.",
+        },
+        components: {
+          type: "array",
+          items: { type: "string" },
+          description: "Distinct items visible on the plate.",
+        },
+        alternatives: {
+          type: "array",
+          items: ALT_SCHEMA,
+          description:
+            "2-3 plausible alternative identifications the user might pick instead, each fully nutritionally specified per serving.",
         },
       },
-      required: ["name", "kcal", "protein", "carbs", "fat", "verdict", "reasoning"],
+      required: [
+        "name",
+        "servingDescription",
+        "servingGrams",
+        "kcal",
+        "protein",
+        "carbs",
+        "fat",
+        "verdict",
+        "reasoning",
+        "confidence",
+        "assumptions",
+        "components",
+        "alternatives",
+      ],
       additionalProperties: false,
     },
   },
 } as const;
 
 function buildSystem(goal: string) {
-  return `You are a sharp, no-nonsense nutrition coach. The user's fitness goal is: ${goal}.
-Analyze the food provided. Estimate macros for a typical serving. Output a verdict relative to their goal:
-- "great": strongly supports the goal
-- "ok": neutral / fine in moderation
-- "avoid": works against the goal (high added sugar, ultra-processed, wrong macro mix, etc.)
-Be honest and specific. Always call the submit_food_analysis tool.`;
+  return `You are a meticulous, evidence-based nutrition coach. The user's fitness goal is: ${goal}.
+
+Your job is ACCURATE per-serving nutrition. Follow this method:
+1. Identify every visible component (protein, carb, veg, sauce, oil, drink).
+2. Estimate portion in grams using plate/utensil/hand cues. Standard dinner plate ≈ 27cm. Be explicit in "assumptions".
+3. Compute kcal & macros for ONE serving as shown — NOT per 100g.
+4. Set "confidence":
+   - high: clearly identifiable single dish, clear portion cues
+   - medium: dish identifiable but portion ambiguous, or composed plate
+   - low: blurry, partial, or ambiguous
+5. Provide 2-3 plausible "alternatives" (e.g. for a brown grain bowl: brown rice bowl vs quinoa bowl vs farro bowl) so the user can correct you. Each alternative must include full per-serving macros.
+6. Verdict relative to the goal: great / ok / avoid. Be honest.
+
+Always call submit_food_analysis. Never refuse — give your best estimate with appropriate confidence.`;
 }
 
 async function callGateway(body: Record<string, unknown>): Promise<FoodAnalysis> {
@@ -58,10 +133,7 @@ async function callGateway(body: Record<string, unknown>): Promise<FoodAnalysis>
 
   const res = await fetch(GATEWAY_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 
@@ -75,21 +147,23 @@ async function callGateway(body: Record<string, unknown>): Promise<FoodAnalysis>
   const data = await res.json();
   const call = data.choices?.[0]?.message?.tool_calls?.[0];
   if (!call?.function?.arguments) throw new Error("AI returned no analysis");
-  const parsed = JSON.parse(call.function.arguments) as FoodAnalysis;
-  return parsed;
+  return JSON.parse(call.function.arguments) as FoodAnalysis;
 }
 
 export const analyzePhoto = createServerFn({ method: "POST" })
   .inputValidator((d: { imageDataUrl: string; goal: string }) => d)
   .handler(async ({ data }) => {
     return callGateway({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-2.5-pro",
       messages: [
         { role: "system", content: buildSystem(data.goal) },
         {
           role: "user",
           content: [
-            { type: "text", text: "Identify this food and analyze it." },
+            {
+              type: "text",
+              text: "Identify this meal precisely. Use plate/utensil cues to estimate the portion in grams. List every component you see. Give 2-3 alternative IDs in case I disagree.",
+            },
             { type: "image_url", image_url: { url: data.imageDataUrl } },
           ],
         },
@@ -106,6 +180,7 @@ export const analyzeBarcodeProduct = createServerFn({ method: "POST" })
       productName: string;
       brand?: string;
       nutriments?: Record<string, number>;
+      servingSize?: string;
       ingredients?: string;
     }) => d,
   )
@@ -115,18 +190,19 @@ export const analyzeBarcodeProduct = createServerFn({ method: "POST" })
         product: data.productName,
         brand: data.brand,
         per_100g: data.nutriments,
+        labeled_serving_size: data.servingSize,
         ingredients: data.ingredients?.slice(0, 500),
       },
       null,
       2,
     );
     return callGateway({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-2.5-pro",
       messages: [
         { role: "system", content: buildSystem(data.goal) },
         {
           role: "user",
-          content: `Analyze this packaged product and give me a per-serving estimate plus verdict for my goal.\n\n${facts}`,
+          content: `Packaged product facts below. Use the labeled serving size when present, otherwise pick a realistic one and say so in assumptions. Compute per-serving macros, not per 100g.\n\n${facts}`,
         },
       ],
       tools: [ANALYSIS_TOOL],
@@ -185,10 +261,7 @@ export const getSuggestions = createServerFn({ method: "POST" })
     if (!key) throw new Error("LOVABLE_API_KEY is not configured");
     const res = await fetch(GATEWAY_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
